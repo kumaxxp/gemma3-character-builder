@@ -75,35 +75,47 @@ ${historyText}
 <start_of_turn>model`
   }
 
-  // Ollama API呼び出し
+  // Ollama API呼び出し - /api/generate を使用
   const callOllama = async (prompt: string): Promise<string> => {
-    const response = await fetch('http://localhost:11434/api/generate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: character.ollamaConfig.model,
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: character.ollamaConfig.temperature,
-          top_k: character.ollamaConfig.top_k,
-          top_p: character.ollamaConfig.top_p,
-          repeat_penalty: character.ollamaConfig.repeat_penalty,
-          num_predict: character.ollamaConfig.max_tokens,
-          num_ctx: character.ollamaConfig.num_ctx,
-          stop: ['<end_of_turn>', '<start_of_turn>']
-        }
+    try {
+      console.log('Calling /api/generate with model:', character.ollamaConfig.model)
+      
+      // /api/generate エンドポイントを使用
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: character.ollamaConfig.model || 'gemma3:4b',
+          prompt: prompt,
+          stream: false,
+          options: {
+            temperature: character.ollamaConfig.temperature || 1.0,
+            top_k: character.ollamaConfig.top_k || 64,
+            top_p: character.ollamaConfig.top_p || 0.95,
+            repeat_penalty: character.ollamaConfig.repeat_penalty || 1.0,
+            num_predict: character.ollamaConfig.max_tokens || 100,
+            num_ctx: character.ollamaConfig.num_ctx || 8192,
+            stop: ['<end_of_turn>', '<start_of_turn>']
+          }
+        })
       })
-    })
 
-    if (!response.ok) {
-      throw new Error(`Ollama API エラー: ${response.status}`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Generate API error:', errorData)
+        throw new Error(errorData.details || errorData.error || 'Generation failed')
+      }
+
+      const data = await response.json()
+      console.log('Response received, length:', data.response?.length)
+      
+      return data.response?.trim() || ''
+    } catch (error) {
+      console.error('callOllama error:', error)
+      throw error
     }
-
-    const data = await response.json()
-    return data.response.trim()
   }
 
   // 単発テスト

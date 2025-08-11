@@ -25,45 +25,43 @@ export default function Gemma3CharacterBuilder() {
   })
   const [isChecking, setIsChecking] = useState(false)
 
-  // システム状態チェック
+  // システム状態チェック - 改善版
   const checkSystemStatus = async () => {
     setIsChecking(true)
+    console.log('システム状態チェック開始...')
+    
     try {
-      // Ollama接続確認
-      const ollamaResponse = await fetch('http://localhost:11434/api/tags', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      })
+      // まずシンプルなテストエンドポイントで確認
+      const testResponse = await fetch('/api/test')
+      const testData = await testResponse.json()
       
-      if (ollamaResponse.ok) {
-        const data = await ollamaResponse.json()
-        const models = data.models || []
-        const hasGemma3 = models.some((model: any) => 
-          model.name.includes('gemma3')
+      console.log('テスト結果:', testData)
+      
+      if (testData.success) {
+        const hasGemma3 = testData.models.some((name: string) => 
+          name.includes('gemma3')
         )
         
         setSystemStatus({
           ollamaConnected: true,
           gemma3Available: hasGemma3
         })
+        
+        console.log('接続成功！モデル:', testData.models)
       } else {
-        setSystemStatus({
-          ollamaConnected: false,
-          gemma3Available: false,
-          error: 'Ollamaに接続できません'
-        })
+        throw new Error(testData.error)
       }
     } catch (error) {
+      console.error('接続エラー:', error)
       setSystemStatus({
         ollamaConnected: false,
         gemma3Available: false,
-        error: 'Ollama接続エラー'
+        error: (error as Error).message
       })
     } finally {
       setIsChecking(false)
     }
   }
-
   useEffect(() => {
     checkSystemStatus()
   }, [])
